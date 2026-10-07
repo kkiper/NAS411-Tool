@@ -1,0 +1,22 @@
+ACME AEROSPACE COMPONENTS - PRODUCT DATASHEET
+Part Number: AC-4471-02  Self-Locking Hex Nut, Floating Anchor
+
+MATERIALS AND FINISHES
+Body: Alloy steel, cadmium plated per QQ-P-416, Type II, Class 3
+Retainer: Beryllium copper, UNS C17200, per ASTM B194
+Insert: 17-4 PH stainless steel, passivated per AMS 2700
+Spring: Inconel X-750
+Primer (mating surface): MIL-PRF-23377 Type I Class C
+Conversion coating (bracket): MIL-DTL-5541 Type I, Class 1A
+
+MATERIAL DECLARATION
+Substance                      CAS No.       Concentration
+Cadmium                        7440-43-9     2.1 wt%
+Strontium chromate             7789-06-2     < 0.5 %
+Nickel                         7440-02-0     4.0 %
+Copper                         7440-50-8     balance
+
+ENVIRONMENTAL
+This product contains no mercury.  Solder joints are lead-free (SAC305).
+Lead time: 6-8 weeks.  Axial leads are tin plated.
+Operating temperature: -55 C to +200 C; Vacuum rated to 10^-6 mm Hg.

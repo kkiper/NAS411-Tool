@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+# Licensed reference documents should not be committed
+reference/
+*.local.csv
+*.local.xlsx

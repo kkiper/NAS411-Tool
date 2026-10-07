@@ -1,0 +1,88 @@
+Substance,CAS,Category,Synonyms,Regulatory Basis,Notes
+Cadmium and cadmium compounds,7440-43-9,,Cd;cadmium plated;cadmium plating;cadmium-plated;cad plated;cad plate;cadmium oxide;cadmium sulfide;cadmium selenide,RoHS; REACH Annex XVII,Common in fastener and connector plating
+Cadmium oxide,1306-19-0,,,RoHS; REACH Annex XVII,
+Cadmium sulfide,1306-23-6,,cadmium yellow,RoHS; REACH SVHC,
+Hexavalent chromium compounds,18540-29-9,,hexavalent chromium;hex chrome;hex-chrome;Cr(VI);Cr6+;Cr+6;chromium VI;chromium (VI);chromium(VI);chromate;dichromate;chromate conversion coating;chromated;chromic acid;chromate primer;chromate sealed,RoHS; REACH Annex XIV,Conversion coatings; primers; anodize seals
+Chromium trioxide,1333-82-0,,chromic anhydride;chromium(VI) oxide,REACH Annex XIV,
+Zinc chromate,13530-65-9,,zinc chromate primer;zinc yellow,REACH Annex XIV,
+Zinc potassium chromate,11103-86-9,,,REACH Annex XIV,
+Strontium chromate,7789-06-2,,,REACH Annex XIV,Corrosion-inhibiting primers and sealants
+Sodium dichromate,10588-01-9,,sodium bichromate,REACH Annex XIV,Also 7789-12-0 (dihydrate)
+Sodium dichromate dihydrate,7789-12-0,,,REACH Annex XIV,
+Potassium dichromate,7778-50-9,,potassium bichromate,REACH Annex XIV,
+Ammonium dichromate,7789-09-5,,,REACH Annex XIV,
+Potassium chromate,7789-00-6,,,REACH Annex XIV,
+Sodium chromate,7775-11-3,,,REACH Annex XIV,
+Barium chromate,10294-40-3,,,REACH SVHC,
+Calcium chromate,13765-19-0,,,REACH SVHC,
+Lead chromate,7758-97-6,,chrome yellow,REACH Annex XIV,Pigments
+Lead and lead compounds,7439-92-1,,Pb;leaded;lead-based;tin-lead;tin/lead;Sn/Pb;SnPb;lead solder;lead oxide;lead-acid,RoHS; REACH SVHC,Solders; free-machining alloys; batteries; pigments
+Lead monoxide,1317-36-8,,litharge;lead(II) oxide,RoHS; REACH SVHC,
+Lead tetroxide,1314-41-6,,red lead;minium,RoHS; REACH SVHC,
+Mercury and mercury compounds,7439-97-6,,Hg;mercury switch;mercury relay;mercury-wetted,RoHS; Minamata Convention,Switches; lamps; relays
+Beryllium and beryllium compounds,7440-41-7,,beryllium copper;beryllium-copper;BeCu;Be-Cu;CuBe;copper beryllium;beryllium nickel;beryllia,OSHA 29 CFR 1910.1024,Springs; contacts; bearings; ceramics
+Beryllium oxide,1304-56-9,,beryllia;BeO,OSHA 29 CFR 1910.1024,Thermal substrates
+Nickel and nickel compounds,7440-02-0,,Ni;nickel plated;nickel plating;nickel-plated;electroless nickel;nickel alloy,REACH Annex XVII (skin contact),Plating; stainless steels; superalloys
+Nickel sulfate,7786-81-4,,nickel sulphate,REACH; CLP Carc. 1A,
+Cobalt and cobalt compounds,7440-48-4,,Co-based;cobalt alloy;cobalt-base,CLP Carc. 1B,Superalloys; magnets; hardfacing
+Cobalt dichloride,7646-79-9,,cobalt chloride,REACH SVHC,Humidity indicators
+Arsenic and arsenic compounds,7440-38-2,,gallium arsenide;GaAs,CLP Carc. 1A,Semiconductors
+Gallium arsenide,1303-00-0,,,REACH SVHC,
+Arsenic trioxide,1327-53-3,,arsenic oxide,REACH Annex XIV,
+Antimony trioxide,1309-64-4,,antimony oxide,CLP Carc. 2,Flame retardant synergist
+Asbestos,1332-21-4,,chrysotile;amosite;crocidolite;tremolite;actinolite;anthophyllite,TSCA; REACH Annex XVII,Gaskets; insulation; friction materials
+Chrysotile,12001-29-5,,white asbestos,TSCA; REACH Annex XVII,
+Thorium,7440-29-1,,thoriated tungsten;thoriated,Radioactive material,Welding electrodes; optical coatings
+Hexabromocyclododecane,25637-99-4,,HBCDD;HBCD,Stockholm Convention; REACH Annex XIV,Flame retardant
+Decabromodiphenyl ether,1163-19-5,,decaBDE;deca-BDE,RoHS; Stockholm Convention,Flame retardant
+Polybrominated diphenyl ethers,,,PBDE;PBDEs;polybrominated diphenyl ether,RoHS; Stockholm Convention,
+Polybrominated biphenyls,59536-65-1,,PBB;PBBs;polybrominated biphenyl,RoHS; Stockholm Convention,
+Polychlorinated biphenyls,1336-36-3,,PCB oil;polychlorinated biphenyl;Aroclor,TSCA; Stockholm Convention,Note: PCB alone is ambiguous with printed circuit board and is not matched
+Short-chain chlorinated paraffins,85535-84-8,,SCCP;SCCPs;chlorinated paraffins,Stockholm Convention,
+Perfluorooctanoic acid,335-67-1,,PFOA,Stockholm Convention; REACH Annex XVII,Fluoropolymer processing aid
+Perfluorooctane sulfonic acid,1763-23-1,,PFOS;perfluorooctane sulfonate,Stockholm Convention,
+Per- and polyfluoroalkyl substances,,,PFAS;polyfluoroalkyl;perfluoroalkyl,Various (TSCA 8(a)(7); state laws),Broad class; confirm specific substances
+Trichloroethylene,79-01-6,,TCE;trichloroethene,REACH Annex XIV; TSCA,Degreasing solvent
+Tetrachloroethylene,127-18-4,,perchloroethylene;PERC;tetrachloroethene,TSCA,Degreasing solvent
+Methylene chloride,75-09-2,,dichloromethane;DCM,TSCA,Paint stripper
+"1,1,1-Trichloroethane",71-55-6,,methyl chloroform,Montreal Protocol,Ozone depleting substance
+Carbon tetrachloride,56-23-5,,tetrachloromethane,Montreal Protocol,Ozone depleting substance
+n-Propyl bromide,106-94-5,,1-bromopropane;nPB;n-PB,REACH SVHC; TSCA,
+CFC-113,76-13-1,,"trichlorotrifluoroethane;Freon 113;1,1,2-trichloro-1,2,2-trifluoroethane",Montreal Protocol,Ozone depleting substance
+CFC-11,75-69-4,,trichlorofluoromethane;Freon 11,Montreal Protocol,Ozone depleting substance
+CFC-12,75-71-8,,dichlorodifluoromethane;Freon 12,Montreal Protocol,Ozone depleting substance
+Halon 1301,75-63-8,,bromotrifluoromethane,Montreal Protocol,Fire suppression
+Halon 1211,353-59-3,,bromochlorodifluoromethane,Montreal Protocol,Fire suppression
+HCFC-141b,1717-00-6,,"1,1-dichloro-1-fluoroethane;R-141b",Montreal Protocol,Ozone depleting substance
+HCFC-22,75-45-6,,chlorodifluoromethane,Montreal Protocol,Ozone depleting substance
+Bis(2-ethylhexyl) phthalate,117-81-7,,DEHP;dioctyl phthalate,RoHS; REACH Annex XIV,Plasticizer in wire insulation and cables
+Dibutyl phthalate,84-74-2,,DBP;di-n-butyl phthalate,RoHS; REACH Annex XIV,Plasticizer
+Benzyl butyl phthalate,85-68-7,,BBP;butyl benzyl phthalate,RoHS; REACH Annex XIV,Plasticizer
+Diisobutyl phthalate,84-69-5,,DIBP,RoHS; REACH Annex XIV,Plasticizer
+Bisphenol A,80-05-7,,BPA,REACH SVHC,Epoxy and polycarbonate precursor
+Formaldehyde,50-00-0,,formalin;methanal,CLP Carc. 1B,
+Benzene,71-43-2,,,CLP Carc. 1A,
+Toluene,108-88-3,,methylbenzene,HAP (Clean Air Act),Solvent
+Xylene,1330-20-7,,xylenes;dimethylbenzene,HAP (Clean Air Act),Solvent
+Methyl ethyl ketone,78-93-3,,MEK;2-butanone;butanone,EPCRA,Solvent
+Methyl isobutyl ketone,108-10-1,,MIBK;hexone,HAP (Clean Air Act),Solvent
+N-Methyl-2-pyrrolidone,872-50-4,,NMP;N-methylpyrrolidone,REACH Annex XVII; TSCA,Solvent
+"N,N-Dimethylformamide",68-12-2,,DMF;dimethylformamide,REACH Annex XVII,Solvent
+2-Methoxyethanol,109-86-4,,ethylene glycol monomethyl ether;EGME,REACH SVHC,
+2-Ethoxyethanol,110-80-5,,ethylene glycol monoethyl ether;EGEE,REACH SVHC,
+Hydrazine,302-01-2,,,REACH SVHC,Propellant
+Boric acid,10043-35-3,,,REACH SVHC,
+Tributyltin oxide,56-35-9,,TBTO;bis(tributyltin) oxide;tributyltin,REACH Annex XVII,Antifouling
+Toluene diisocyanate,26471-62-5,,TDI;tolylene diisocyanate,REACH Annex XVII,Polyurethanes
+Methylene diphenyl diisocyanate,101-68-8,,MDI;diphenylmethane diisocyanate,REACH Annex XVII,Polyurethanes
+Hexamethylene diisocyanate,822-06-0,,"hexamethylene-1,6-diisocyanate",REACH Annex XVII,Polyurethane coatings
+"4,4'-Methylenebis(2-chloroaniline)",101-14-4,,MOCA;MBOCA,REACH Annex XIV,Polyurethane curative
+Epichlorohydrin,106-89-8,,,CLP Carc. 1B,Epoxy precursor
+Crystalline silica,14808-60-7,,respirable crystalline silica,OSHA 29 CFR 1910.1053,Fillers; abrasives
+Octamethylcyclotetrasiloxane,556-67-2,,,REACH Annex XVII,Silicones
+Decamethylcyclopentasiloxane,541-02-6,,,REACH Annex XVII,Silicones
+Dodecamethylcyclohexasiloxane,540-97-6,,,REACH Annex XVII,Silicones
+Nonylphenol,25154-52-3,,nonyl phenol,REACH Annex XVII,
+4-Nonylphenol,104-40-5,,,REACH Annex XVII,
+Nonylphenol ethoxylates,9016-45-9,,NPE;nonylphenol ethoxylate,REACH Annex XVII,Surfactants
+Tris(2-chloroethyl) phosphate,115-96-8,,TCEP,REACH Annex XIV,Flame retardant

@@ -1,0 +1,39 @@
+Pattern,Indicator,Implied Substance,Implied CAS,Note
+"\b(?:AMS[- ]?)?QQ[- ]?P[- ]?416\w*",QQ-P-416 / AMS-QQ-P-416 cadmium plating,Cadmium and cadmium compounds,7440-43-9,Electrodeposited cadmium plating specification; Type II/III supplementary treatments are chromate-based
+"\bAMS[- ]?240[01]\w*",AMS 2400 / AMS 2401 cadmium plating,Cadmium and cadmium compounds,7440-43-9,Cadmium plating specification
+"\bAMS[- ]?2419\w*",AMS 2419 cadmium-titanium plating,Cadmium and cadmium compounds,7440-43-9,Cadmium-titanium plating specification
+"\bMIL[- ]?STD[- ]?870\w*",MIL-STD-870 cadmium plating,Cadmium and cadmium compounds,7440-43-9,Low-embrittlement cadmium plating
+"\bMIL[- ]?(?:DTL|C)[- ]?5541\w*",MIL-DTL-5541 chemical conversion coating,Hexavalent chromium compounds,18540-29-9,Type I is hexavalent chromium based; Type II is non-hexavalent. Verify the type called out
+"\bMIL[- ]?(?:DTL|C)[- ]?81706\w*",MIL-DTL-81706 conversion coating materials,Hexavalent chromium compounds,18540-29-9,Type I materials contain hexavalent chromium; Type II do not. Verify the type
+"\bAlodine\s*(?:1200S?|1000|600|1201)\b",Alodine (chromate) conversion coating,Hexavalent chromium compounds,18540-29-9,These Alodine grades are hexavalent chromium conversion coatings
+"\bIridite\s*14\w*",Iridite 14-2 chromate conversion coating,Hexavalent chromium compounds,18540-29-9,Hexavalent chromium conversion coating
+"\bMIL[- ]?(?:PRF|A)[- ]?8625\w*",MIL-PRF-8625 anodize,Hexavalent chromium compounds,18540-29-9,Type I / IB is chromic acid anodize; Type II and III may use a dichromate seal. Verify type and seal
+"\bAMS[- ]?2470\w*",AMS 2470 chromic acid anodize,Hexavalent chromium compounds,18540-29-9,Chromic acid anodizing
+"\bchromic\s+acid\s+anodi[sz]\w*",Chromic acid anodize,Hexavalent chromium compounds,18540-29-9,
+"\bdichromate\s+seal\w*",Dichromate seal,Hexavalent chromium compounds,18540-29-9,
+"\bMIL[- ]?(?:PRF|P)[- ]?23377\w*",MIL-PRF-23377 epoxy primer,Hexavalent chromium compounds,18540-29-9,Class C (and C1/C2) is chromated (strontium chromate); Class N is non-chromated. Verify the class
+"\bMIL[- ]?(?:PRF|P)[- ]?85582\w*",MIL-PRF-85582 waterborne epoxy primer,Hexavalent chromium compounds,18540-29-9,Class C (and C1/C2) is chromated; Class N is non-chromated. Verify the class
+"\bTT[- ]?P[- ]?1757\w*",TT-P-1757 zinc chromate primer,Zinc chromate,13530-65-9,Zinc chromate primer
+"\bMIL[- ]?(?:PRF|S)[- ]?81733\w*",MIL-PRF-81733 sealing compound,Hexavalent chromium compounds,18540-29-9,Corrosion-inhibitive sealant; many qualified products contain chromates. Verify type
+"\bAMS[- ]?QQ[- ]?C[- ]?320\w*|\bQQ[- ]?C[- ]?320\w*",QQ-C-320 chromium plating,Hexavalent chromium compounds,18540-29-9,Chromium electroplating; traditionally from hexavalent chromium baths
+"\bAMS[- ]?24(?:06|60)\w*",AMS 2406 / AMS 2460 chromium plating,Hexavalent chromium compounds,18540-29-9,Chromium plating; traditionally from hexavalent chromium baths
+"\b(?:hard|decorative|bright)\s+chrom(?:e|ium)\s+plat\w*",Chrome plating,Hexavalent chromium compounds,18540-29-9,Hard/decorative chrome is commonly deposited from hexavalent baths. Verify process
+"\b(?:AMS[- ]?)?QQ[- ]?P[- ]?35\w*",QQ-P-35 passivation,Hexavalent chromium compounds,18540-29-9,Some passivation types use sodium dichromate. Verify type
+"\bSn\s?6[0-3]\s?/?\s?Pb\s?(?:3[7-9]|40)\b|\bSn\s?6[0-3]\s?Pb\s?(?:3[6-9]|40)\w*",Tin-lead solder alloy,Lead and lead compounds,7439-92-1,Tin-lead solder
+"\bPb\s?(?:3[6-9]|40)\s?/?\s?Sn\s?6[0-3]\b",Lead-tin solder alloy,Lead and lead compounds,7439-92-1,Tin-lead solder
+"\b(?:UNS\s*)?C3(?:4[0-9]|5[0-9]|6[0-9]|7[0-9]|8[0-5])00\b",Leaded brass (UNS C34000-C38500),Lead and lead compounds,7439-92-1,Free-machining / leaded brass alloys typically contain about 0.5-3.7% lead
+"\b(?:UNS\s*)?C(?:544|932|836|838)00\b",Leaded bronze (UNS C54400 / C93200 / C83600 / C83800),Lead and lead compounds,7439-92-1,Leaded bronze alloys
+"\b1[12]L1[0-9]\b",Leaded free-machining steel (e.g. 12L14),Lead and lead compounds,7439-92-1,Leaded steels contain about 0.15-0.35% lead
+"\b(?:AA|Al(?:uminum|uminium)?\s*(?:alloy)?)\s*-?\s*(?:2011|6262)\b|\b(?:2011|6262)-T\d+\b",Aluminum alloy 2011 / 6262,Lead and lead compounds,7439-92-1,Free-machining aluminum alloys containing lead (and bismuth)
+"\b(?:UNS\s*)?C17(?:000|200|300|410|450|500|510)\b",Beryllium copper alloy (UNS C17xxx),Beryllium and beryllium compounds,7440-41-7,Copper-beryllium alloy
+"\b(?:UNS\s*)?C82[0-9]00\b",Cast beryllium copper (UNS C82xxx),Beryllium and beryllium compounds,7440-41-7,Copper-beryllium casting alloy
+"\bASTM\s*B\s?(?:194|196|197)\b",ASTM beryllium copper material spec,Beryllium and beryllium compounds,7440-41-7,ASTM specifications for copper-beryllium
+"\bthoriated\s+tungsten\b|\bWT[- ]?20\b|\bEWTh[- ]?2\b",Thoriated tungsten electrode,Thorium,7440-29-1,Contains about 2% thorium oxide
+"\b(?:AMS[- ]?)?QQ[- ]?N[- ]?290\w*",QQ-N-290 nickel plating,Nickel and nickel compounds,7440-02-0,Nickel electroplating
+"\bAMS[- ]?(?:2403|2404|2405|2423|2424)\w*",AMS nickel plating spec,Nickel and nickel compounds,7440-02-0,Nickel / electroless nickel plating
+"\bAMS[- ]?2417\w*",AMS 2417 zinc-nickel plating,Nickel and nickel compounds,7440-02-0,Zinc-nickel alloy plating
+"\bMIL[- ]?(?:DTL|C)[- ]?26074\w*",MIL-DTL-26074 electroless nickel,Nickel and nickel compounds,7440-02-0,Electroless nickel coating
+"\bInconel\b|\bIncoloy\b|\bMonel\b|\bHastelloy\b|\bWaspaloy\b|\bNimonic\b|\bRene\s?41\b|\bInvar\b|\bKovar\b|\bAlloy\s?42\b",Nickel-based or nickel-iron alloy,Nickel and nickel compounds,7440-02-0,Nickel is a major constituent
+"\b(?:AISI\s*|SS\s*|type\s*)?3(?:0[1-9]|1[0-9]|21|47)(?:L|H|Se)?\s*(?:SS|CRES|stainless)\b|\b(?:15-5|17-4|17-7|13-8)\s*PH\b|\bCRES\s*3\d\d\b|\b(?:AISI|SS|UNS\s*S)\s*-?\s*3(?:0[1-9]|1[0-9]|21|47)(?:L|H)?\b",Austenitic / PH stainless steel,Nickel and nickel compounds,7440-02-0,Austenitic and precipitation-hardening stainless steels contain nickel
+"\bStellite\b|\bMP35N\b|\bL-?605\b|\bHaynes\s?(?:25|188)\b|\bSmCo\b|\bsamarium[- ]cobalt\b|\bAlnico\b",Cobalt-bearing alloy or magnet,Cobalt and cobalt compounds,7440-48-4,Cobalt is a major constituent (Kovar and Waspaloy also contain cobalt)
+"\bKovar\b|\bWaspaloy\b",Kovar / Waspaloy (cobalt-bearing),Cobalt and cobalt compounds,7440-48-4,Contains cobalt
