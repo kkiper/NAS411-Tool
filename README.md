@@ -35,11 +35,20 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-Then open the URL that Streamlit prints:
+Then open http://localhost:8501:
 
 1. Import your NAS 411-1 list in the sidebar.
 2. Upload the datasheets.
 3. Review the findings and download the report.
+
+### Privacy: everything stays on your computer
+
+- The tool makes no internet connections. Datasheets and your NAS 411-1 list are processed in memory on your computer and are never uploaded anywhere. The "upload" button only passes the file from your browser to the app running on the same machine.
+- `.streamlit/config.toml` makes the app listen only on `localhost`, so other computers on your network can't open it. It also turns off Streamlit's anonymous usage statistics.
+- The command-line tool (below) doesn't start a web server at all.
+- Keep your licensed NAS 411-1 file outside the repository, or in a `reference/` folder, which `.gitignore` excludes, so it is never committed.
+
+After running `streamlit run app.py`, open http://localhost:8501 in your browser.
 
 ### Command line
 

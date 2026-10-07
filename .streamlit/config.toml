@@ -1,0 +1,18 @@
+# Keep the app private to this computer.
+
+[server]
+# Listen only on this machine; other computers on the network can't connect.
+address = "localhost"
+port = 8501
+# Skip the first-run email prompt; open the printed localhost URL yourself.
+headless = true
+enableCORS = true
+enableXsrfProtection = true
+
+[browser]
+serverAddress = "localhost"
+# Don't send Streamlit usage statistics.
+gatherUsageStats = false
+
+[global]
+developmentMode = false
