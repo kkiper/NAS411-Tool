@@ -2,6 +2,9 @@
 
 Upload hardware datasheets and screen them against **NAS 411-1, Hazardous Material Target List (HMTL)**. NAS 411-1 is the list used by **NAS 411** Hazardous Materials Management Programs (HMMP). The tool reports which listed materials a part may contain, why it thinks so, and the NAS 411-1 category for each one (for example Prohibited, Restricted, or Tracked).
 
+> This repository also contains a **[Cable Drawing Tool](#cable-drawing-tool)** that turns a wiring list and
+> part numbers into a cable assembly drawing.
+
 ## What it does
 
 1. **Extracts text** from datasheets, material declarations, and SDSs. It reads PDF (with page numbers), DOCX, XLSX/XLS, CSV, TXT, and HTML files, or text you paste in.
@@ -78,6 +81,75 @@ This is a **screening aid**, not a compliance determination.
 - A clean result means "nothing found in the text", not "free of hazardous materials". Confirm with supplier material declarations or SDSs.
 - Some spec callouts depend on Type or Class. For example, MIL-DTL-5541 Type I is hexavalent chromium and Type II isn't. Those hits carry a "verify the type" note.
 - Scanned (image-only) PDFs must be OCR'd before upload.
+
+## Cable Drawing Tool
+
+Turns a wiring list plus your **connector, backshell, heatshrink, label and wire part numbers** into a cable
+assembly drawing package (PDF, or one SVG per sheet):
+
+| Sheet | Contents |
+|---|---|
+| 1 | Assembly view (connectors, backshells, heatshrink boots, ID labels, lengths, item balloons), bill of materials, notes |
+| 2 | Wiring diagram: a pin-out table for every connector, with each wire drawn pin to pin and tagged with wire ID, gauge and color |
+| 3+ | Wire list and label schedule (continued onto more sheets if needed) |
+
+Every sheet has a zoned border and a title block (company, title, drawing number, revision, drawn/checked, date, sheet *n* of *m*).
+Sheet sizes: ANSI B, C, D and ISO A3, A2, A1.
+
+```bash
+streamlit run cable_app.py
+```
+
+1. Upload a wiring list (or load one of the samples), and set the title block in the sidebar.
+2. Fill in part numbers in the **Connectors** tab. Every connector named in the wire list gets a row automatically.
+   Optionally add BOM descriptions in **Part descriptions**, and edit the general notes.
+3. Review the checks, preview the sheets, and download the PDF, SVGs, BOM, or **Save project (.xlsx)**.
+   Upload the saved project later to continue where you left off.
+
+Command line:
+
+```bash
+python -m cable_tool samples/cable_wirelist.csv -c samples/cable_connectors.csv --length 48 \
+    --dwg-no W101-001 --title "CABLE ASSY, FCC TO PDU" -o W101-001.pdf --svg out/ --bom bom.csv
+python -m cable_tool samples/y_harness_wirelist.csv -c samples/y_harness_connectors.csv --sheet D -o W200.pdf
+```
+
+### Input format
+
+**Wiring list** (CSV or Excel, one row per wire). Headers are matched loosely, and title rows above the header are skipped.
+
+| Column | Required | Also accepted as |
+|---|---|---|
+| From, To | yes | From Conn, Source / Destination. `P1-3`, `P1:3` or `P1.3` are split into connector and pin. |
+| From Pin, To Pin | if not in From/To | Pin A / Pin B, From Contact |
+| Wire ID | no (W1, W2... assigned) | Wire, Wire No, Circuit |
+| Signal, Gauge, Color | no | Function / Net, AWG / Size, Colour |
+| Wire P/N | no | Wire Type, Part Number |
+| Length | no | Cut Length. Overrides the length worked out from the cable lengths. |
+| Wire Label P/N, Wire Heatshrink P/N | no | Marker P/N, Sleeve P/N. Installed at **both** ends of the wire (qty 2 per wire). |
+| Notes | no | Remarks |
+
+**Connector table** (one row per connector end): `Ref`, `Description`, `Connector P/N`, `Backshell P/N`,
+`Heatshrink P/N` (boot over the backshell), `Label P/N`, `Label Text` (legend; defaults to the ref), and `Length`
+(from the connector face to the breakout). An Excel wiring list can carry this on a sheet named *Connectors*, plus optional
+*Parts* (P/N, Description), *Title Block* and *Notes* sheets.
+
+### Lengths and quantities
+
+- **Two-connector cable:** enter the overall length (sidebar or `--length`). Every wire is cut to that length.
+- **Harness with a breakout:** enter each connector's length to the breakout. A wire from P1 to P3 is cut to P1 + P3.
+- A per-wire **Length** overrides both. Wires whose length can't be worked out (for example a jumper within one
+  connector) make that wire's BOM quantity **AR** (as required).
+- Connectors, backshells, boots and labels are 1 per connector end. Wire markers and wire heatshrink are 2 per wire.
+  Parts with the same P/N are combined into one BOM item, which lists where it's used.
+
+### Checks
+
+The tool warns about duplicate wire IDs, pins with more than one wire, missing pins or wire part numbers, connectors
+without a part number or without wires, and lengths it can't work out.
+
+The part numbers in the samples are typical examples (D38999 / MS3126 connectors, M85049 backshells, M22759 wire)
+used to show the layout. Check every part number against your own design and approved parts list.
 
 ## Tests
 
