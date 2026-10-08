@@ -1,3 +1,3 @@
-Ref,Description,Connector P/N,Backshell P/N,Heatshrink P/N,Label P/N,Label Text,Length
-P1,To flight computer J3,D38999/26WD35SN,M85049/38S15W,202K153-25/225-0,TMS-SCE-1/2-2.0-9,W101-P1,
-P2,To power distribution J7,D38999/26WD35PN,M85049/38S15W,202K153-25/225-0,TMS-SCE-1/2-2.0-9,W101-P2,
+Ref,Description,Connector P/N,Contact P/N,Backshell P/N,Heatshrink P/N,Label P/N,Label Text,Length
+P1,To flight computer J3,D38999/26WD18SN,,M85049/38S15W,202K153-25/225-0,TMS-SCE-1/2-2.0-9,W101-P1,
+P2,To power distribution J7,D38999/26WD18PN,,M85049/38S15W,202K153-25/225-0,TMS-SCE-1/2-2.0-9,W101-P2,

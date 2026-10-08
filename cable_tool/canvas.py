@@ -47,6 +47,7 @@ class Poly:
     fill: str | None = None
     stroke: str | None = "#000000"
     round_joins: bool = False
+    dash: tuple[float, ...] | None = None
 
 
 @dataclass
@@ -87,6 +88,7 @@ class Group:
     dx: float = 0.0
     dy: float = 0.0
     scale: float = 1.0
+    layer: str = ""           # CAD layer name for DXF output (inherited by nested groups)
 
     # Drawing helpers --------------------------------------------------------
     def add(self, item):
@@ -107,6 +109,12 @@ class Group:
 
     def text(self, x, y, s, **kw):
         return self.add(Text(x, y, str(s), **kw))
+
+    def ellipse(self, cx, cy, rx, ry, n=40, **kw):
+        import math
+
+        pts = [(cx + rx * math.cos(2 * math.pi * i / n), cy + ry * math.sin(2 * math.pi * i / n)) for i in range(n)]
+        return self.add(Poly(pts, closed=True, **kw))
 
     def arrow(self, x, y, toward_x, toward_y, size=6.0):
         """Filled arrowhead with its tip at (x, y), pointing away from (toward_x, toward_y)."""
@@ -184,6 +192,8 @@ def _svg_items(group: Group, out: list[str]) -> None:
             tag = "polygon" if it.closed else "polyline"
             pts = " ".join(f"{_num(x)},{_num(y)}" for x, y in it.points)
             join = ' stroke-linejoin="round" stroke-linecap="round"' if it.round_joins else ""
+            if it.dash:
+                join += f' stroke-dasharray="{",".join(_num(d) for d in it.dash)}"'
             out.append(f'<{tag} points="{pts}" fill="{it.fill or "none"}" stroke="{it.stroke or "none"}" '
                        f'stroke-width="{_num(it.width)}"{join}/>')
         elif isinstance(it, Rect):
@@ -246,6 +256,7 @@ def _pdf_items(c, group: Group, dx: float, dy: float, s: float, page_h: float) -
             else:
                 c.setLineJoin(1 if it.round_joins else 0)
                 c.setLineCap(1 if it.round_joins else 0)
+                c.setDash([d * s for d in it.dash] if it.dash else [])
                 p = c.beginPath()
                 p.moveTo(X(it.points[0][0]), Y(it.points[0][1]))
                 for x, y in it.points[1:]:
@@ -253,6 +264,7 @@ def _pdf_items(c, group: Group, dx: float, dy: float, s: float, page_h: float) -
                 if it.closed:
                     p.close()
                 c.drawPath(p, fill=fill, stroke=stroke)
+                c.setDash([])
                 c.setLineJoin(0)
                 c.setLineCap(0)
         elif isinstance(it, Text):

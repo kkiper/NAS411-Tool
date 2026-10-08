@@ -7,15 +7,20 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-from .model import CableDesign, fmt_length, natural_key
+from .model import SHIELD_BACKSHELL, CableDesign, fmt_length, natural_key, parse_shield_term
 
 # (category, default description) in BOM order
 CATEGORIES = {
     "connector": "CONNECTOR",
+    "contact": "CONTACT",
     "backshell": "BACKSHELL",
     "heatshrink": "BOOT, HEATSHRINK",
     "label": "LABEL, CABLE IDENTIFICATION",
+    "cable": "CABLE",
     "wire": "WIRE",
+    "shield": "SHIELD, BRAID",
+    "shield_term": "SHIELD TERMINATION",
+    "splice": "SPLICE",
     "wire_label": "MARKER, WIRE IDENTIFICATION",
     "wire_heatshrink": "SLEEVE, HEATSHRINK",
 }
@@ -53,12 +58,34 @@ def build_bom(design: CableDesign) -> list[BomItem]:
 
     for c in design.connectors:
         add(c.connector_pn, "connector", 1, "EA", c.ref)
+        pins = design.pins_used(c.ref)
+        if pins:
+            add(design.contact_pn(c.ref), "contact", len(pins), "EA", c.ref)
         add(c.backshell_pn, "backshell", 1, "EA", c.ref)
         add(c.heatshrink_pn, "heatshrink", 1, "EA", c.ref)
         add(c.label_pn, "label", 1, "EA", c.ref)
+
+    cabled = set()
+    for g in design.groups:
+        if not design.group_members(g.group_id):
+            continue
+        length = design.group_length(g.group_id)
+        if g.cable_pn:
+            add(g.cable_pn, "cable", length, design.units, g.group_id)
+            cabled.add(g.group_id)
+        add(g.shield_pn, "shield", length, design.units, g.group_id)
+        for ref in dict.fromkeys(design.group_ends(g.group_id)):
+            kind, _ = parse_shield_term(design.shield_term_at(g, ref), ref)
+            if kind in (SHIELD_BACKSHELL, "PIN"):
+                add(g.shield_term_pn, "shield_term", 1, "EA", f"{g.group_id}@{ref}")
     for w in design.wires:
+        if w.group in cabled:
+            continue   # conductor of a cable already counted by length
         hint = " ".join(x for x in (f"{w.gauge} AWG" if w.gauge else "", w.color) if x)
         add(w.wire_pn, "wire", design.wire_length(w), design.units, w.wire_id, hint)
+    for sp in design.splices:
+        if any(sp.ref in (w.from_ref, w.to_ref) for w in design.wires):
+            add(sp.splice_pn, "splice", 1, "EA", sp.ref)
     for w in design.wires:
         add(w.label_pn, "wire_label", 2, "EA", w.wire_id)
     for w in design.wires:
@@ -67,7 +94,7 @@ def build_bom(design: CableDesign) -> list[BomItem]:
     order = list(CATEGORIES)
     items: list[BomItem] = []
     for pn, e in sorted(entries.items(), key=lambda kv: order.index(kv[1]["category"])):
-        desc = design.part_descriptions.get(pn, "").strip()
+        desc = design.description(pn)
         if not desc:
             desc = CATEGORIES[e["category"]]
             if e["category"] == "wire":
@@ -119,21 +146,33 @@ def check_design(design: CableDesign) -> list[str]:
         if n > 1:
             msgs.append(f"Wire ID {wid} is used {n} times.")
     refs = {c.ref for c in design.connectors}
+    cabled = {g.group_id for g in design.groups if g.cable_pn}
     for w in design.wires:
-        for ref in (w.from_ref, w.to_ref):
+        for ref, pin in ((w.from_ref, w.from_pin), (w.to_ref, w.to_pin)):
+            if design.is_splice(ref):
+                continue
             if ref not in refs:
                 msgs.append(f"Wire {w.wire_id}: connector {ref} isn't in the connector table.")
-        if not w.from_pin or not w.to_pin:
-            msgs.append(f"Wire {w.wire_id}: missing a pin number.")
-        if not w.wire_pn:
+            if not pin:
+                msgs.append(f"Wire {w.wire_id}: missing a pin number at {ref}.")
+        if not w.wire_pn and w.group not in cabled:
             msgs.append(f"Wire {w.wire_id}: no wire part number.")
     pins: dict[tuple[str, str], list[str]] = defaultdict(list)
     for w in design.wires:
-        pins[(w.from_ref, w.from_pin)].append(w.wire_id)
-        pins[(w.to_ref, w.to_pin)].append(w.wire_id)
+        for ref, pin in ((w.from_ref, w.from_pin), (w.to_ref, w.to_pin)):
+            if not design.is_splice(ref):
+                pins[(ref, pin)].append(w.wire_id)
     for (ref, pin), ids in sorted(pins.items(), key=lambda kv: (natural_key(kv[0][0]), natural_key(kv[0][1]))):
         if pin and len(ids) > 1:
             msgs.append(f"{ref} pin {pin} has {len(ids)} wires ({', '.join(ids)}); confirm the contact accepts a double crimp or add a splice.")
+    for sp in design.splices:
+        n = sum((w.from_ref == sp.ref) + (w.to_ref == sp.ref) for w in design.wires)
+        if n == 0:
+            msgs.append(f"Splice {sp.ref}: no wires connect to it.")
+        elif n == 1:
+            msgs.append(f"Splice {sp.ref}: only one wire connects to it.")
+        if not sp.splice_pn and n:
+            msgs.append(f"Splice {sp.ref}: no splice part number.")
     used = {r for w in design.wires for r in (w.from_ref, w.to_ref)}
     for c in design.connectors:
         if not c.connector_pn:

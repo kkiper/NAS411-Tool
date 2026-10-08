@@ -16,12 +16,14 @@ SAMPLES = ROOT / "samples"
 
 
 def two_connector_design() -> CableDesign:
+    """The W101 sample: shielded twisted pair cable, built-up twisted pair, splice, and parts library."""
+    from cable_tool.project import apply_table
+
     design, msgs = load_design("cable_wirelist.csv", (SAMPLES / "cable_wirelist.csv").read_bytes())
     assert not msgs
-    from cable_tool.cli import _read_table
-    from cable_tool.project import add_connectors, connectors_from_dataframe
-
-    add_connectors(design, connectors_from_dataframe(_read_table(SAMPLES / "cable_connectors.csv")))
+    for kind, name in (("parts", "parts_library.csv"), ("connectors", "cable_connectors.csv"),
+                       ("groups", "cable_groups.csv"), ("splices", "cable_splices.csv")):
+        apply_table(design, kind, name, (SAMPLES / name).read_bytes())
     design.overall_length = 48
     return design
 
@@ -44,12 +46,19 @@ def test_title_rows_and_combined_ref_pin():
 def test_bom_quantities():
     design = two_connector_design()
     bom = {b.pn: b for b in build_bom(design)}
-    assert bom["D38999/26WD35SN"].qty == 1 and bom["D38999/26WD35SN"].category == "connector"
+    assert bom["D38999/26WD18SN"].qty == 1 and bom["D38999/26WD18SN"].category == "connector"
+    assert bom["D38999/26WD18SN"].description == "CONNECTOR, PLUG, 18 SKT"  # from the parts library
+    assert bom["M39029/56-351"].qty == 12 and bom["M39029/56-351"].category == "contact"  # P1 pins 1-12
+    assert bom["M39029/58-363"].qty == 12  # P2 pins 1-10, 12 and the shield drain on 11
     assert bom["M85049/38S15W"].qty == 2 and bom["M85049/38S15W"].used_on == ["P1", "P2"]
     assert bom["TMS-SCE-1/2-2.0-9"].category == "label"
-    assert bom["M22759/16-22-6"].qty == 96 and bom["M22759/16-22-6"].unit == "IN"  # W4 + W6 at 48 in
+    assert bom["M27500-22TG2T14"].qty == 48 and bom["M27500-22TG2T14"].category == "cable"  # TSP1 by length
+    assert bom["M22759/16-22-6"].qty == 48 and bom["M22759/16-22-6"].unit == "IN"  # W6 only; W4 is a cable conductor
+    assert bom["M22759/16-22-0"].qty == 54  # W9 to the splice (42) + W12 + W13 (6 each)
     assert bom["M22759/16-22-9"].qty_text() == "AR"  # includes the P1 jumper with no length
-    assert bom["TMS-SCE-1/8-2.0-9"].qty == 22  # wire markers: 11 wires x 2 ends
+    assert bom["M81824/1-1"].qty == 1 and bom["M81824/1-1"].category == "splice"
+    assert bom["M83519/2-3"].qty == 2  # shield terminated at P1 backshell and P2 pin 11
+    assert bom["TMS-SCE-1/8-2.0-9"].qty == 26  # wire markers: 13 wires x 2 ends
     items = [b.item for b in build_bom(design)]
     assert items == list(range(1, len(items) + 1))
 
@@ -94,11 +103,14 @@ def test_drawing_sheets(size):
     sheets, warnings = build_drawing(design, size)
     assert len(sheets) == 3 and not warnings
     svg1 = sheet_to_svg(sheets[0])
-    for text in ("D38999/26WD35SN", "BILL OF MATERIALS", "48 IN", "W101-001", "1 OF 3", "W101-P1"):
+    for text in ("D38999/26WD18SN", "BILL OF MATERIALS", "48 IN", "W101-001", "1 OF 3", "W101-P1", "SP1 @ 6 IN FROM P2"):
         assert text in svg1
     svg2 = sheet_to_svg(sheets[1])
     assert "RS422 TX+" in svg2 and "W3  22 AWG  WHT" in svg2
-    assert "LABEL SCHEDULE" in sheet_to_svg(sheets[2])
+    svg3 = sheet_to_svg(sheets[2])
+    for text in ("LABEL SCHEDULE", "WIRE GROUPS AND SHIELDS", "SHIELDED TWISTED PAIR", "P1: BACKSHELL", "P2: PIN 11",
+                 "SPLICES", "6 IN FROM P2 FACE"):
+        assert text in svg3
     from pypdf import PdfReader
 
     reader = PdfReader(io.BytesIO(sheets_to_pdf(sheets)))
@@ -121,7 +133,7 @@ def test_long_wire_list_continues_on_more_sheets():
 def test_project_round_trip():
     design = two_connector_design()
     design.title_block.drawing_number = "W101-001"
-    design.part_descriptions["D38999/26WD35SN"] = "CONN, PLUG, 37 SKT"
+    design.part_descriptions["D38999/26WD18SN"] = "CONN, PLUG, 18 SKT"
     reloaded, msgs = load_design("project.xlsx", save_design(design))
     assert not msgs
     assert reloaded.title_block.drawing_number == "W101-001"
@@ -130,8 +142,15 @@ def test_project_round_trip():
         [(w.wire_id, w.from_ref, w.from_pin, w.to_ref, w.to_pin, w.wire_pn) for w in design.wires]
     assert reloaded.connector("P2").backshell_pn == "M85049/38S15W"
     assert reloaded.connector("P2").label_text == "W101-P2"
-    assert reloaded.part_descriptions["D38999/26WD35SN"] == "CONN, PLUG, 37 SKT"
+    assert reloaded.description("D38999/26WD18SN") == "CONN, PLUG, 18 SKT"
     assert reloaded.notes == design.notes
+    assert [(g.group_id, g.kind, g.cable_pn, g.shield_term_pn, g.term_from, g.term_to) for g in reloaded.groups] == \
+        [(g.group_id, g.kind, g.cable_pn, g.shield_term_pn, g.term_from, g.term_to) for g in design.groups]
+    assert [(sp.ref, sp.splice_pn, sp.near, sp.distance) for sp in reloaded.splices] == [("SP1", "M81824/1-1", "P2", 6)]
+    assert reloaded.wires[2].group == "TSP1"
+    assert len(reloaded.library) == len(design.library)
+    assert reloaded.library.get("M39029/56-351").awg_range == (20, 24)
+    assert reloaded.library.get("M85049/38S15W").dia_range == (0.14, 0.45)
 
 
 def test_excel_wirelist_with_connectors_sheet():
@@ -167,4 +186,13 @@ def test_cable_app_runs():
     at.selectbox(key="sample").select("Y-harness with breakout (W200)").run()
     at.button[0].click().run()
     assert not at.exception
-    assert [m.value for m in at.metric] == ["8", "3", "11", "3"]
+    errors, warnings, info, bundle = (m.value for m in at.metric)
+    assert (errors, warnings) == ("0", "2")   # the 3/8 in label sleeve is too big for the P2 and P3 legs
+    assert bundle == "0.167 in"
+    drc = next(d.value for d in at.dataframe if "Severity" in d.value.columns)
+    assert set(drc["Rule"]) == {"Label fit"}
+    at.selectbox(key="sample").select("Two-connector cable with shielded pair and splice (W101)").run()
+    at.button[0].click().run()
+    assert not at.exception
+    assert [m.value for m in at.metric][:2] == ["0", "1"]   # only the jumper's unknown length
+    assert [d.label for d in at.get("download_button")][:2] == ["Drawing (.pdf)", "CAD sheets (.dxf, zipped)"]

@@ -14,7 +14,7 @@ from dataclasses import dataclass
 
 from .bom import BomItem, build_bom, compress_refs, item_numbers
 from .canvas import Group, Sheet, fit_text, text_width
-from .model import CableDesign, ConnectorEnd, Wire, fmt_length, natural_key
+from .model import SHIELD_BACKSHELL, CableDesign, ConnectorEnd, Wire, fmt_dia, fmt_length, natural_key, parse_shield_term
 
 IN = 72.0
 MM = 72.0 / 25.4
@@ -280,12 +280,18 @@ def dimension(g: Group, xa: float, xb: float, y: float, ext_a: float, ext_b: flo
 
 
 def assembly_view(design: CableDesign, items: dict[str, int]) -> Group:
-    g = Group()
+    g = Group(layer="ASSEMBLY")
     left, right = assign_sides(design)
     if not left:
         g.text(0, 0, "NO CONNECTORS DEFINED", size=12, bold=True)
         return g
-    wire_items = sorted({items[p] for w in design.wires for p in (w.wire_pn, w.label_pn, w.heatshrink_pn) if p in items})
+    located = {sp.ref for sp in design.splices if sp.near and sp.distance is not None and design.connector(sp.near)}
+    used_splices = [sp for sp in design.splices if any(sp.ref in (w.from_ref, w.to_ref) for w in design.wires)]
+    bundle_pns = [p for w in design.wires for p in (w.wire_pn, w.label_pn, w.heatshrink_pn)]
+    bundle_pns += [p for gr in design.groups if design.group_members(gr.group_id)
+                   for p in (gr.cable_pn, gr.shield_pn, gr.shield_term_pn)]
+    bundle_pns += [sp.splice_pn for sp in used_splices if sp.ref not in located]
+    wire_items = sorted({items[p] for p in bundle_pns if p in items})
     straight = len(left) == 1 and len(right) == 1
     units = design.units
 
@@ -342,6 +348,25 @@ def assembly_view(design: CableDesign, items: dict[str, int]) -> Group:
             for k, item in enumerate(wire_items[1:], start=1):
                 balloon(g, x0 + d * (k % per_row) * 2 * BALLOON_R, y0 + bal_side * (k // per_row) * 2 * BALLOON_R, item)
 
+    # Splices with a location: marker on the leg, balloon, and location callout
+    leg_of = {c.ref: (face, y, d, c) for c, face, y, d in legs}
+    for sp in used_splices:
+        if sp.ref not in located or sp.near not in leg_of:
+            continue
+        face, y, d, c = leg_of[sp.near]
+        run_start, run_end = face + d * end_length(c), bx - d * bend
+        leg_len = c.length if c.length else design.end_to_end_length()
+        frac = min(max((sp.distance / leg_len) if leg_len else 0.5, 0.2), 0.8)
+        if straight and leg_len and design.end_to_end_length():
+            frac = min(max(sp.distance / design.end_to_end_length() * 2, 0.2), 0.8)
+        x = run_start + (run_end - run_start) * frac
+        g.rect(x - 8, y - CABLE_W / 2 - 3, 16, CABLE_W + 6, fill=SHADE, width=0.8)
+        side = 1 if (straight or y >= by - 1) else -1
+        by_ = y + side * 36
+        if sp.splice_pn in items:
+            balloon(g, x, by_, items[sp.splice_pn], (x, y + side * (CABLE_W / 2 + 3)))
+        g.text(x + 13, by_ + 3, f"{sp.ref} @ {fmt_length(sp.distance)} {units} FROM {sp.near}", size=7, bold=True)
+
     if straight:
         (_, fa, ya, _), (_, fb, yb, _) = legs
         total = design.end_to_end_length()
@@ -366,47 +391,71 @@ def wire_tag(w: Wire) -> str:
     return "  ".join(x for x in (w.wire_id, _gauge_text(w.gauge), w.color.upper()) if x)
 
 
+@dataclass
+class _Row:
+    pin: str
+    signal: str
+    wire: Wire | None = None
+    end_no: int = 0
+    shield_of: str = ""        # group id when this row is a shield drain to a pin
+
+
+def _ground_symbol(g: Group, x: float, y: float, d: int) -> None:
+    """Chassis ground drawn sideways (lead along x) so it fits between pin rows."""
+    for k, h in enumerate((9.0, 6.0, 3.0)):
+        xx = x + d * k * 2.2
+        g.line(xx, y - h / 2, xx, y + h / 2, width=0.7)
+
+
 def wiring_diagram(design: CableDesign) -> Group:
-    g = Group()
+    g = Group(layer="WIRING")
+    shields = Group(layer="SHIELDS")
     left, right = assign_sides(design)
     side_of = {c.ref: 1 for c in left} | {c.ref: -1 for c in right}
+    has_groups = any(design.group_members(gr.group_id) for gr in design.groups)
 
-    # Endpoints per connector, sorted by pin
-    ends: dict[str, list[tuple[str, Wire, int]]] = {c.ref: [] for c in design.connectors}
+    # Rows per connector: wire ends plus shield drains that land on otherwise unused pins
+    rows: dict[str, list[_Row]] = {c.ref: [] for c in design.connectors}
     for w in design.wires:
         for end_no, (ref, pin) in enumerate(((w.from_ref, w.from_pin), (w.to_ref, w.to_pin))):
-            ends.setdefault(ref, []).append((pin, w, end_no))
-    for lst in ends.values():
-        lst.sort(key=lambda e: (natural_key(e[0]), natural_key(e[1].wire_id)))
+            if ref in rows:
+                rows[ref].append(_Row(pin, w.signal, w, end_no))
+    for c in design.connectors:
+        for gr, pin in design.shield_pins(c.ref):
+            if not any(r.pin == pin for r in rows[c.ref]):
+                rows[c.ref].append(_Row(pin, f"{gr.group_id} SHIELD", None, 0, gr.group_id))
+    for lst in rows.values():
+        lst.sort(key=lambda r: (natural_key(r.pin), natural_key(r.wire.wire_id if r.wire else "")))
 
     size, row_h = 7.0, 13.0
-    stub = max([90.0] + [text_width(wire_tag(w), 6.5) + 18 for w in design.wires])
+    tag_end = max([60.0] + [text_width(wire_tag(w), 6.5) + 10 for w in design.wires])
+    stub = max(90.0, tag_end + (40 if has_groups else 8))
+    oval_off = tag_end + 12
 
     def table_dims(c: ConnectorEnd):
-        rows = ends.get(c.ref, [])
-        pin_w = max([30.0] + [text_width(p, size) + 12 for p, _, _ in rows])
-        sig_w = min(170.0, max([80.0] + [text_width(w.signal, size) + 12 for _, w, _ in rows]))
-        lines = [c.connector_pn, c.description.upper()]
-        head_h = 18 + 10 * sum(1 for x in lines if x)
-        return pin_w, sig_w, head_h, max(len(rows), 1)
+        rs = rows.get(c.ref, [])
+        pin_w = max([30.0] + [text_width(r.pin, size) + 12 for r in rs])
+        sig_w = min(170.0, max([80.0] + [text_width(r.signal, size) + 12 for r in rs]))
+        head_h = 18 + 10 * sum(1 for x in (c.connector_pn, c.description) if x)
+        return pin_w, sig_w, head_h, max(len(rs), 1)
 
     tw_left = max([sum(table_dims(c)[:2]) for c in left] + [0])
-
-    same_left = [w for w in design.wires if side_of.get(w.from_ref) == 1 and side_of.get(w.to_ref) == 1]
-    same_right = [w for w in design.wires if side_of.get(w.from_ref) == -1 and side_of.get(w.to_ref) == -1]
-    center = 180 + 6 * (len(same_left) + len(same_right))
+    same = {d: [w for w in design.wires if side_of.get(w.from_ref) == d and side_of.get(w.to_ref) == d] for d in (1, -1)}
+    used_splices = [sp for sp in design.splices if any(sp.ref in (w.from_ref, w.to_ref) for w in design.wires)]
+    center = max(180 + 6 * (len(same[1]) + len(same[-1])), 240 if used_splices else 0)
     x_left_anchor = tw_left + stub
     x_right_table = tw_left + 2 * stub + center
     x_right_anchor = x_right_table - stub
 
-    anchor: dict[tuple[str, int], tuple[float, float]] = {}  # (wire_id, end) -> point
+    anchor: dict[tuple[int, int], tuple[float, float]] = {}       # (id(wire), end) -> stub tip
+    row_y: dict[tuple[str, str], float] = {}                        # (ref, pin) -> row centre y
+    edges: dict[str, tuple[float, int]] = {}                        # ref -> (table edge x, direction)
     for side, d in ((left, 1), (right, -1)):
         y = 0.0
         for c in side:
             pin_w, sig_w, head_h, nrows = table_dims(c)
             tw = pin_w + sig_w
             x = tw_left - tw if d == 1 else x_right_table
-            # Header
             g.rect(x, y, tw, head_h, fill=HEADER_FILL, width=1.0)
             g.text(x + tw / 2, y + 13, c.ref, size=10, bold=True, anchor="middle")
             ty = y + 13
@@ -420,39 +469,128 @@ def wiring_diagram(design: CableDesign) -> Group:
             g.text(pin_x + pin_w / 2, y + 9, "PIN", size=6.5, bold=True, anchor="middle")
             g.text(sig_x + sig_w / 2, y + 9, "SIGNAL", size=6.5, bold=True, anchor="middle")
             y += 12
-            rows = ends.get(c.ref, [])
+            rs = rows.get(c.ref, [])
             g.rect(x, y, tw, nrows * row_h, width=0.75)
-            g.line(x + (pin_w if d == 1 else sig_w), y - 12, x + (pin_w if d == 1 else sig_w), y + nrows * row_h, width=0.5)
-            if not rows:
+            div = x + (pin_w if d == 1 else sig_w)
+            g.line(div, y - 12, div, y + nrows * row_h, width=0.5)
+            if not rs:
                 g.text(x + tw / 2, y + 9.5, "NO WIRES", size=size, anchor="middle")
-            for r, (pin, w, end_no) in enumerate(rows):
+            edge = x + tw if d == 1 else x
+            edges[c.ref] = (edge, d)
+            for r, row in enumerate(rs):
                 ry = y + r * row_h
                 if r:
                     g.line(x, ry, x + tw, ry, width=0.35)
-                g.text(pin_x + pin_w / 2, ry + 9.5, pin, size=size, bold=True, anchor="middle")
-                g.text(sig_x + 4, ry + 9.5, fit_text(w.signal, size, sig_w - 8), size=size)
+                g.text(pin_x + pin_w / 2, ry + 9.5, row.pin, size=size, bold=True, anchor="middle")
+                g.text(sig_x + 4, ry + 9.5, fit_text(row.signal, size, sig_w - 8), size=size)
                 cy = ry + row_h / 2
-                edge = x + tw if d == 1 else x
+                row_y.setdefault((c.ref, row.pin), cy)
+                g.circle(edge, cy, 1.3, fill="#000000", width=0.3)
+                if row.wire is None:     # shield drain row: dashed stub to the shield lead
+                    shields.line(edge, cy, edge + d * (oval_off + 14), cy, width=0.75, dash=(3, 2))
+                    shields.text(edge + d * 5, cy - 2.5, f"{row.shield_of} SHLD", size=6.5,
+                                 anchor="start" if d == 1 else "end")
+                    continue
                 tip = edge + d * stub
                 g.line(edge, cy, tip, cy, width=0.75)
-                g.text(edge + d * 5, cy - 2.5, wire_tag(w), size=6.5, anchor="start" if d == 1 else "end")
-                g.circle(edge, cy, 1.3, fill="#000000", width=0.3)
-                anchor[(w.wire_id + f"#{id(w)}", end_no)] = (tip, cy)
+                g.text(edge + d * 5, cy - 2.5, wire_tag(row.wire), size=6.5, anchor="start" if d == 1 else "end")
+                anchor[(id(row.wire), row.end_no)] = (tip, cy)
             y += nrows * row_h + 28
+
+    # Splice nodes in the centre column, near the wires they join
+    node: dict[str, tuple[float, float]] = {}
+    sx = (x_left_anchor + x_right_anchor) / 2
+    wanted = []
+    for sp in used_splices:
+        ys = [anchor[(id(w), 1 - e)][1] for w in design.wires for e, ref in enumerate((w.from_ref, w.to_ref))
+              if ref == sp.ref and (id(w), 1 - e) in anchor]
+        wanted.append((sum(ys) / len(ys) if ys else 0.0, sp))
+    last = -1e9
+    for want, sp in sorted(wanted, key=lambda t: t[0]):
+        yy = max(want, last + 30)
+        node[sp.ref] = (sx, yy)
+        last = yy
 
     lane = {1: 0, -1: 0}
     for w in design.wires:
-        key = w.wire_id + f"#{id(w)}"
-        a, b = anchor.get((key, 0)), anchor.get((key, 1))
-        if not a or not b:
+        ends = []
+        for e, ref in enumerate((w.from_ref, w.to_ref)):
+            if ref in node:
+                ends.append(node[ref])
+            elif (id(w), e) in anchor:
+                ends.append(anchor[(id(w), e)])
+        if len(ends) != 2:
             continue
-        sa, sb = side_of.get(w.from_ref, 1), side_of.get(w.to_ref, 1)
-        if sa != sb:
-            g.line(a[0], a[1], b[0], b[1], width=0.75)
-        else:
+        a, b = ends
+        sa, sb = side_of.get(w.from_ref), side_of.get(w.to_ref)
+        if sa is not None and sa == sb:
             lx = (x_left_anchor + 12 + 6 * lane[1]) if sa == 1 else (x_right_anchor - 12 - 6 * lane[-1])
             lane[sa] += 1
             g.poly([a, (lx, a[1]), (lx, b[1]), b], width=0.75)
+        else:
+            g.line(a[0], a[1], b[0], b[1], width=0.75)
+
+    for sp in used_splices:
+        x, y = node[sp.ref]
+        g.circle(x, y, 3.5, fill="#000000", width=0.5)
+        g.text(x, y - 7, sp.ref, size=7.5, bold=True, anchor="middle")
+        if sp.splice_pn:
+            g.text(x, y + 13, sp.splice_pn, size=6, anchor="middle")
+
+    # Twists, shields, jackets and shield terminations at each connector
+    for gr in design.groups:
+        members = design.group_members(gr.group_id)
+        if not members:
+            continue
+        shielded = gr.shielded or "SHIELD" in gr.kind.upper()
+        for ref, (edge, d) in edges.items():
+            ys = sorted(row_y[(ref, p)] for w in members for r, p in ((w.from_ref, w.from_pin), (w.to_ref, w.to_pin))
+                        if r == ref and (ref, p) in row_y)
+            if not ys:
+                continue
+            ox = edge + d * oval_off
+            top, bot = ys[0], ys[-1]
+            cy, ry = (top + bot) / 2, (bot - top) / 2 + 5.5
+            if gr.twisted and len(ys) >= 2:
+                for y1, y2 in zip(ys, ys[1:]):
+                    shields.line(ox - 4, y1, ox + 4, y2, width=0.6)
+                    shields.line(ox - 4, y2, ox + 4, y1, width=0.6)
+            if shielded or gr.jacketed:
+                shields.ellipse(ox, cy, 7, ry, width=0.7, dash=(2.5, 1.5) if shielded else None)
+            shields.text(ox + d * 9, top - 2.5, gr.group_id, size=5.5, bold=True, anchor="start" if d == 1 else "end")
+            if not shielded:
+                continue
+            kind, pin = parse_shield_term(design.shield_term_at(gr, ref), ref)
+            lead_x = ox + d * 7
+            if kind == SHIELD_BACKSHELL:
+                shields.line(lead_x, cy, lead_x + d * 7, cy, width=0.6, dash=(2, 1.5))
+                _ground_symbol(shields, lead_x + d * 7, cy, d)
+            elif kind == "PIN" and (ref, pin) in row_y:
+                py = row_y[(ref, pin)]
+                jx = lead_x + d * 7
+                shields.poly([(lead_x, cy), (jx, cy), (jx, py)], width=0.6, dash=(2, 1.5))
+                shields.circle(jx, py, 1.4, fill="#000000", width=0.3)
+            elif kind == "":
+                shields.text(lead_x + d * 3, cy + 2.5, "?", size=7, bold=True, anchor="start" if d == 1 else "end")
+    g.add(shields)
+
+    # Legend for the symbols used
+    if has_groups:
+        x0, y0 = 0.0, g.bounds()[3] + 18
+        lg = Group(layer="WIRING")
+        lg.text(0, 0, "LEGEND:", size=7, bold=True)
+        lg.line(46, -6, 54, 0, width=0.6)
+        lg.line(46, 0, 54, -6, width=0.6)
+        lg.text(58, 0, "TWISTED", size=6.5)
+        lg.ellipse(110, -3, 5, 6, width=0.7, dash=(2.5, 1.5))
+        lg.text(119, 0, "SHIELD", size=6.5)
+        lg.ellipse(160, -3, 5, 6, width=0.7)
+        lg.text(169, 0, "JACKETED CABLE", size=6.5)
+        _ground_symbol(lg, 236, -3, 1)
+        lg.text(246, 0, "SHIELD TO BACKSHELL", size=6.5)
+        lg.text(330, 0, "? = SHIELD TERMINATION NOT SPECIFIED", size=6.5)
+        lg.dx, lg.dy = x0, y0
+        g.add(lg)
     return g
 
 
@@ -473,14 +611,35 @@ def wrap(text: str, size: float, width: float) -> list[str]:
     return lines or [""]
 
 
-def auto_notes(design: CableDesign, bom: list[BomItem], table_sheets: tuple[int, int]) -> list[str]:
+def auto_notes(design: CableDesign, bom: list[BomItem], table_sheets: tuple[int, int], bundles: dict | None = None) -> list[str]:
     def items(cat: str) -> str:
         nums = [str(b.item) for b in bom if b.category == cat]
         return ("ITEM " if len(nums) == 1 else "ITEMS ") + ", ".join(nums) if nums else ""
 
     first, last = table_sheets
     sheets = f"SHEET {first}" if first == last else f"SHEETS {first} THRU {last}"
-    notes = [f"WIRING DIAGRAM ON SHEET 2. WIRE LIST AND LABEL SCHEDULE ON {sheets}."]
+    tables = ["WIRE LIST"]
+    active_groups = [gr for gr in design.groups if design.group_members(gr.group_id)]
+    used_splices = [sp for sp in design.splices if any(sp.ref in (w.from_ref, w.to_ref) for w in design.wires)]
+    if active_groups:
+        tables.append("WIRE GROUPS")
+    if used_splices:
+        tables.append("SPLICES")
+    tables.append("LABEL SCHEDULE")
+    notes = [f"WIRING DIAGRAM ON SHEET 2. {', '.join(tables[:-1])} AND {tables[-1]} ON {sheets}."]
+    if any(gr.twisted and not gr.cable_pn for gr in active_groups):
+        notes.append("TWIST THE WIRES OF EACH TWISTED GROUP TOGETHER OVER THEIR FULL LENGTH (SEE WIRE GROUPS TABLE).")
+    if items("shield"):
+        notes.append(f"INSTALL OVERALL SHIELDS ({items('shield')}) OVER SHIELDED GROUPS PER WIRE GROUPS TABLE.")
+    if any(gr.shielded for gr in active_groups):
+        term = f" USING {items('shield_term')}" if items("shield_term") else ""
+        notes.append(f"TERMINATE SHIELDS PER WIRE GROUPS TABLE{term}. INSULATE FLOATING SHIELD ENDS.")
+    if items("splice"):
+        notes.append(f"INSTALL SPLICES ({items('splice')}) PER SPLICE TABLE.")
+    if bundles:
+        parts = [f"{ref} {fmt_dia(b.diameter, design)}" for ref, b in bundles.items() if b.diameter]
+        if parts:
+            notes.append("CALCULATED BUNDLE DIAMETER AT CONNECTORS (REF): " + ", ".join(parts) + ".")
     if items("heatshrink"):
         notes.append(f"RECOVER HEATSHRINK BOOTS ({items('heatshrink')}) OVER BACKSHELL CABLE CLAMPS.")
     if items("label"):
@@ -494,7 +653,7 @@ def auto_notes(design: CableDesign, bom: list[BomItem], table_sheets: tuple[int,
 
 
 def notes_block(notes: list[str], width: float) -> Group:
-    g = Group()
+    g = Group(layer="NOTES")
     g.text(0, 10, "NOTES:", size=9, bold=True)
     y = 26.0
     for i, note in enumerate(notes, start=1):
@@ -510,13 +669,61 @@ def notes_block(notes: list[str], width: float) -> Group:
 # Wire list / label schedule rows
 # ---------------------------------------------------------------------------
 def wire_list_rows(design: CableDesign) -> tuple[list[str], list[list[str]]]:
-    headers = ["WIRE", "FROM", "PIN", "TO", "PIN", "SIGNAL", "AWG", "COLOR", "WIRE P/N", f"LENGTH ({design.units})", "NOTES"]
+    headers = ["WIRE", "FROM", "PIN", "TO", "PIN", "SIGNAL", "AWG", "COLOR", "WIRE P/N", "GROUP",
+               f"LENGTH ({design.units})", "NOTES"]
     rows = []
     for w in design.wires:
         length = design.wire_length(w)
+        gr = design.group(w.group) if w.group else None
+        wire_pn = w.wire_pn or (f"({gr.cable_pn})" if gr and gr.cable_pn else "")
         rows.append([w.wire_id, w.from_ref, w.from_pin, w.to_ref, w.to_pin, w.signal, w.gauge, w.color.upper(),
-                     w.wire_pn, fmt_length(length) if length is not None else "AR", w.notes])
+                     wire_pn, w.group, fmt_length(length) if length is not None else "AR", w.notes])
     return headers, rows
+
+
+def _term_text(design: CableDesign, gr, ref: str) -> str:
+    if not ref:
+        return ""
+    if design.is_splice(ref):
+        return f"{ref}: (SPLICE)"
+    kind, pin = parse_shield_term(design.shield_term_at(gr, ref), ref)
+    if not gr.shielded:
+        return ""
+    if kind == "PIN":
+        return f"{ref}: PIN {pin}"
+    return f"{ref}: {kind or 'TBD'}"
+
+
+def group_rows(design: CableDesign, items: dict[str, int]) -> tuple[list[str], list[list[str]]]:
+    headers = ["GROUP", "TYPE", "WIRES", "CABLE P/N", "SHIELD P/N", "SHIELD TERM", "SHIELD (FROM END)",
+               "SHIELD (TO END)", "NOTES"]
+    rows = []
+    for gr in design.groups:
+        members = design.group_members(gr.group_id)
+        if not members:
+            continue
+        a, b = design.group_ends(gr.group_id)
+        term = gr.shield_term_pn + (f" (ITEM {items[gr.shield_term_pn]})" if gr.shield_term_pn in items else "")
+        rows.append([gr.group_id, gr.kind.upper(), compress_refs([w.wire_id for w in members], 40), gr.cable_pn,
+                     gr.shield_pn, term, _term_text(design, gr, a), _term_text(design, gr, b) if b != a else "",
+                     gr.notes])
+    return headers, rows
+
+
+def splice_rows(design: CableDesign, items: dict[str, int]) -> tuple[list[str], list[list[str]]]:
+    headers = ["SPLICE", "ITEM", "SPLICE P/N", "LOCATION", "WIRES", "NOTES"]
+    rows = []
+    for sp in design.splices:
+        wires = [w.wire_id for w in design.wires if sp.ref in (w.from_ref, w.to_ref)]
+        if not wires:
+            continue
+        loc = f"{fmt_length(sp.distance)} {design.units} FROM {sp.near} FACE" if sp.near and sp.distance is not None else "AR"
+        rows.append([sp.ref, str(items.get(sp.splice_pn, "")), sp.splice_pn, loc, ", ".join(wires), sp.notes])
+    return headers, rows
+
+
+def _end_text(ref: str, pin: str) -> str:
+    return f"{ref}-{pin}" if pin else ref
 
 
 def label_schedule_rows(design: CableDesign, items: dict[str, int]) -> tuple[list[str], list[list[str]]]:
@@ -528,7 +735,7 @@ def label_schedule_rows(design: CableDesign, items: dict[str, int]) -> tuple[lis
     for w in design.wires:
         if w.label_pn:
             rows.append([str(items.get(w.label_pn, "")), w.label_pn, w.wire_id,
-                         f"WIRE {w.wire_id}, AT {w.from_ref}-{w.from_pin} AND {w.to_ref}-{w.to_pin}", "2"])
+                         f"WIRE {w.wire_id}, AT {_end_text(w.from_ref, w.from_pin)} AND {_end_text(w.to_ref, w.to_pin)}", "2"])
     return headers, rows
 
 
@@ -537,7 +744,9 @@ def label_schedule_rows(design: CableDesign, items: dict[str, int]) -> tuple[lis
 # ---------------------------------------------------------------------------
 def _new_sheet(w: float, h: float, name: str) -> tuple[Sheet, Frame]:
     sheet = Sheet(w, h, name=name)
-    frame = draw_frame(sheet.root, w, h)
+    border = Group(layer="BORDER")
+    frame = draw_frame(border, w, h)
+    sheet.root.add(border)
     return sheet, frame
 
 
@@ -559,8 +768,11 @@ def build_drawing(design: CableDesign, sheet_size: str = DEFAULT_SHEET) -> tuple
     y = _heading(sheet.root, f, "WIRE LIST AND LABEL SCHEDULE")
     table_sheets.append((sheet, f))
     region_w = f.x1 - f.x0 - 2 * PAD
+    col_top, col_x, col_right = y, 0.0, 0.0     # tables flow down, then into the next column, then onto a new sheet
     for title, (headers, rows), caps, centered in (
-        ("WIRE LIST", wire_list_rows(design), [60, 60, 40, 60, 40, 170, 40, 70, 150, 70, 200], frozenset({2, 4, 6, 9})),
+        ("WIRE LIST", wire_list_rows(design), [60, 60, 40, 60, 40, 170, 40, 70, 150, 50, 70, 200], frozenset({2, 4, 6, 10})),
+        ("WIRE GROUPS AND SHIELDS", group_rows(design, items), [50, 150, 120, 150, 130, 170, 110, 110, 200], frozenset()),
+        ("SPLICES", splice_rows(design, items), [50, 36, 150, 200, 200, 200], frozenset({1})),
         ("LABEL SCHEDULE", label_schedule_rows(design, items), [36, 150, 120, 260, 32], frozenset({0, 4})),
     ):
         if not rows:
@@ -572,12 +784,17 @@ def build_drawing(design: CableDesign, sheet_size: str = DEFAULT_SHEET) -> tuple
             bottom = f.tb_top - PAD
             capacity = int(((bottom - y) / s - TITLE_H - HEADER_H) // ROW_H)
             if capacity < 1:
-                sheet, f = _new_sheet(W, H, "Wire list (cont.)")
-                y = _heading(sheet.root, f, "WIRE LIST AND LABEL SCHEDULE (CONTINUED)")
-                table_sheets.append((sheet, f))
+                if col_right and col_right + 24 + sum(widths) * s <= region_w:
+                    col_x, y = col_right + 24, col_top
+                else:
+                    sheet, f = _new_sheet(W, H, "Wire list (cont.)")
+                    y = col_top = _heading(sheet.root, f, "WIRE LIST AND LABEL SCHEDULE (CONTINUED)")
+                    col_x = col_right = 0.0
+                    table_sheets.append((sheet, f))
                 continue
             chunk, remaining = remaining[:capacity], remaining[capacity:]
-            tg = Group(dx=f.x0 + PAD, dy=y, scale=s)
+            col_right = max(col_right, col_x + sum(widths) * s)
+            tg = Group(dx=f.x0 + PAD + col_x, dy=y, scale=s, layer="TABLES")
             used = draw_table(tg, 0, 0, headers, chunk, widths, title=title if first else f"{title} (CONTINUED)",
                               center_cols=centered)
             sheet.root.add(tg)
@@ -591,7 +808,7 @@ def build_drawing(design: CableDesign, sheet_size: str = DEFAULT_SHEET) -> tuple
     bom_headers = ["ITEM", "QTY", "UNIT", "PART NUMBER", "DESCRIPTION", "USED ON"]
     bom_rows = [[str(b.item), b.qty_text(), b.unit, b.pn, b.description, compress_refs(b.used_on, 40)] for b in bom]
     bom_widths = table_widths(bom_headers, bom_rows or [[""] * 6], caps=[0, 0, 0, 160, 190, 140])
-    bom_g = Group()
+    bom_g = Group(layer="TABLES")
     draw_table(bom_g, 0, 0, bom_headers, bom_rows or [["", "", "", "NO PARTS ENTERED", "", ""]], bom_widths,
                title="BILL OF MATERIALS", center_cols=frozenset({0, 1, 2}))
     inner_w = f1.x1 - f1.x0
@@ -601,7 +818,9 @@ def build_drawing(design: CableDesign, sheet_size: str = DEFAULT_SHEET) -> tuple
     if bom_g.scale < 0.6:
         warnings.append("The bill of materials was shrunk to fit sheet 1; consider a larger sheet size.")
 
-    notes = design.rendered_notes() + auto_notes(design, bom, (3, total))
+    from .drc import run_drc
+
+    notes = design.rendered_notes() + auto_notes(design, bom, (3, total), run_drc(design).bundles)
     notes_w = (f1.x1 - col_w) - f1.x0 - 2 * PAD
     ng = notes_block(notes, notes_w)
     nb = ng.bounds()
@@ -632,5 +851,7 @@ def build_drawing(design: CableDesign, sheet_size: str = DEFAULT_SHEET) -> tuple
 
     sheets = [(s1, f1), (s2, f2), *table_sheets]
     for n, (sheet, frame) in enumerate(sheets, start=1):
-        draw_title_block(sheet.root, frame, design, letter, n, total)
+        tb = Group(layer="TITLE_BLOCK")
+        draw_title_block(tb, frame, design, letter, n, total)
+        sheet.root.add(tb)
     return [s for s, _ in sheets], warnings
